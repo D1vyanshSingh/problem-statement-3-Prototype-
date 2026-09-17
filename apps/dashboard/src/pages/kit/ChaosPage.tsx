@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSnapshot, useEventFeed, api } from '../../store';
-import { Panel, Dot, Icon } from '../../components/kit';
+import { Panel, Dot, Icon, fmt } from '../../components/kit';
 
 /** Chaos Demo — real failover scenario: kill a worker holding tasks, watch the system heal. */
 
@@ -28,8 +28,66 @@ export default function ChaosPage() {
   const [fenceStep, setFenceStep] = useState<0 | 1 | 2 | 3>(0); // 0 idle, 1 task running, 2 reassigned, 3 stale write rejected
   const [fenceLog, setFenceLog] = useState<string[]>([]);
 
+  // Load test state
+  const [loadCount, setLoadCount] = useState(30);
+  const [loadBusy, setLoadBusy] = useState(false);
+  const [loadNote, setLoadNote] = useState<string | null>(null);
+  const [loadBaseline, setLoadBaseline] = useState<Record<string, number> | null>(null);
+  const [completedByWorker, setCompletedByWorker] = useState<Record<string, number>>({});
+
   const online = s.workers.filter((w) => w.status === 'online');
   const runningTasks = s.tasks.filter((t) => t.status === 'running' && t.assignedWorkerId);
+
+  // Poll per-worker completion counts while a load test drains.
+  useEffect(() => {
+    if (!loadBusy && !loadBaseline) return;
+    const poll = window.setInterval(async () => {
+      try {
+        const m = await api<Record<string, number>>('/api/metrics/completed-by-worker');
+        setCompletedByWorker(m);
+      } catch {
+        /* server busy */
+      }
+    }, 1000);
+    return () => window.clearInterval(poll);
+  }, [loadBusy, loadBaseline]);
+
+  const runLoadTest = async () => {
+    if (loadBusy) return;
+    setLoadBusy(true);
+    setLoadNote(null);
+    try {
+      // Ensure enough workers exist to make distribution non-trivial.
+      if (online.length < 3) {
+        setLoadNote('Deploying workers so the load has somewhere to spread…');
+        while (online.length < 3) {
+          await api('/api/admin/chaos/spawn-worker', { method: 'POST' });
+          await new Promise((r) => setTimeout(r, 800));
+        }
+        setLoadNote(null);
+      }
+      // Snapshot current completions so the bars show only THIS run's distribution.
+      const base = await api<Record<string, number>>('/api/metrics/completed-by-worker');
+      setLoadBaseline(base);
+      setCompletedByWorker(base);
+      // Seed a burst of short tasks via the deterministic seeder (crash-free).
+      await api('/api/admin/chaos/seed-tasks', {
+        method: 'POST',
+        body: JSON.stringify({ count: loadCount, seed: Date.now() % 100000, crashCount: 0 }),
+      });
+      setLoadNote(`${loadCount} tasks queued — watch the distribution build up below.`);
+    } catch (e) {
+      setLoadNote(`Load test failed to start: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setLoadBusy(false);
+    }
+  };
+
+  const loadDelta = (workerId: string): number => {
+    if (!loadBaseline) return completedByWorker[workerId] ?? 0;
+    return Math.max(0, (completedByWorker[workerId] ?? 0) - (loadBaseline[workerId] ?? 0));
+  };
+  const loadTotal = s.workers.reduce((a, w) => a + loadDelta(w.id), 0);
 
   // Derive live stage progress from real events during an active run.
   const seen = (type: string, after: number) =>
@@ -254,6 +312,89 @@ export default function ChaosPage() {
             })}
           </div>
         </div>
+      </Panel>
+
+      {/* Load test / load balancing */}
+      <Panel className="p-5 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded bg-black border border-border flex items-center justify-center text-red-500">
+              <Icon name="stacked_bar_chart" className="!text-[18px]" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-white tracking-wide">Load Test — Distribution Across Workers</h3>
+              <p className="text-[11px] text-gray-500">
+                Seeds a burst of short tasks and shows how the queue balances them across the fleet.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="font-mono text-[11px] text-gray-400">
+              Tasks:
+              <input
+                type="number"
+                min={5}
+                max={100}
+                value={loadCount}
+                onChange={(e) => setLoadCount(Math.min(100, Math.max(5, Number(e.target.value) || 20)))}
+                className="ml-2 w-16 bg-black border border-border rounded px-2 py-1 font-mono text-xs text-white focus:border-red-500 focus:outline-none"
+              />
+            </label>
+            <button
+              onClick={runLoadTest}
+              disabled={loadBusy}
+              className="px-4 py-2 bg-red-600 text-white font-mono text-xs font-bold rounded hover:bg-red-500 disabled:opacity-50 transition-all flex items-center gap-2 shadow-[0_0_16px_rgba(239,68,68,0.4)] active:scale-95"
+            >
+              <Icon name={loadBusy ? 'sync' : 'bolt'} className={`!text-[16px] ${loadBusy ? 'animate-spin' : ''}`} />
+              {loadBusy ? 'SEEDING…' : 'RUN LOAD TEST'}
+            </button>
+            {loadBaseline && (
+              <button
+                onClick={() => {
+                  setLoadBaseline(null);
+                  setCompletedByWorker({});
+                  setLoadNote(null);
+                }}
+                className="px-3 py-1.5 bg-black border border-border text-gray-400 hover:text-white font-mono text-xs rounded"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+        </div>
+
+        {loadNote && <div className="text-[11px] font-mono text-sky-300">{loadNote}</div>}
+
+        {loadBaseline && (
+          <div className="space-y-3">
+            {s.workers.filter((w) => w.status === 'online').map((w) => {
+              const n = loadDelta(w.id);
+              const pct = loadTotal ? (n / loadTotal) * 100 : 0;
+              return (
+                <div key={w.id}>
+                  <div className="flex justify-between font-mono text-[11px] mb-1">
+                    <span className="text-white flex items-center gap-1.5">
+                      <Dot color="white" /> {w.name}
+                    </span>
+                    <span className="text-white font-semibold">
+                      {n} <span className="text-gray-500 font-normal">completed ({pct.toFixed(0)}%)</span>
+                    </span>
+                  </div>
+                  <div className="w-full bg-black h-3 rounded-full overflow-hidden border border-border">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-red-600 to-red-400 transition-all duration-500"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+            <div className="flex justify-between font-mono text-[11px] text-gray-500 pt-1">
+              <span>{fmt(loadTotal)} of {fmt(loadCount)} tasks completed this run</span>
+              <span>{fmt(Math.max(0, s.queue.byStatus.pending ?? 0))} still queued</span>
+            </div>
+          </div>
+        )}
       </Panel>
 
       {/* Fencing simulation */}

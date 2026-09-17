@@ -101,6 +101,7 @@ export default function TasksPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | TaskStatus>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [taskKind, setTaskKind] = useState<'sleep' | 'flaky' | 'always_fail'>('sleep');
 
   const filtered = useMemo(
     () => (statusFilter === 'all' ? s.tasks : s.tasks.filter((t) => t.status === statusFilter)),
@@ -118,10 +119,24 @@ export default function TasksPage() {
     if (busy) return;
     setBusy(true);
     try {
-      await api('/api/tasks', {
-        method: 'POST',
-        body: JSON.stringify({ type: 'demo.sleep', payload: { workMs: 60000 }, maxAttempts: 3 }),
-      });
+      if (taskKind === 'sleep') {
+        await api('/api/tasks', {
+          method: 'POST',
+          body: JSON.stringify({ type: 'demo.sleep', payload: { workMs: 60000 }, maxAttempts: 3 }),
+        });
+      } else if (taskKind === 'flaky') {
+        // Fails twice, then succeeds: shows RETRYING -> RUNNING -> COMPLETED live.
+        await api('/api/tasks', {
+          method: 'POST',
+          body: JSON.stringify({ type: 'demo.fail_until_attempt', payload: { failUntilAttempt: 2 }, maxAttempts: 5 }),
+        });
+      } else {
+        // Always fails: exhausts retries and lands in the DLQ.
+        await api('/api/tasks', {
+          method: 'POST',
+          body: JSON.stringify({ type: 'demo.always_fail', payload: { reason: 'judge-requested failure' }, maxAttempts: 3 }),
+        });
+      }
     } finally {
       setBusy(false);
     }
@@ -158,12 +173,35 @@ export default function TasksPage() {
               </button>
             ))}
           </div>
+          <div className="flex items-center gap-1 bg-black border border-border rounded p-1 text-xs font-mono">
+            {(
+              [
+                ['sleep', 'Normal (60s)'],
+                ['flaky', 'Fails 2x then succeeds'],
+                ['always_fail', 'Always fails (→ DLQ)'],
+              ] as const
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                onClick={() => setTaskKind(k)}
+                className={`px-2 py-0.5 rounded ${
+                  taskKind === k
+                    ? k === 'sleep'
+                      ? 'bg-panel-hover text-white border border-border'
+                      : 'bg-red-950/80 text-red-300 border border-red-800'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <button
             onClick={newTask}
             disabled={busy}
             className="px-3 py-1.5 bg-red-600 text-white font-mono text-xs font-semibold rounded hover:bg-red-500 disabled:opacity-40 flex items-center gap-1"
           >
-            <Icon name="add" className="!text-[16px]" /> New task (60s)
+            <Icon name="add" className="!text-[16px]" /> New task
           </button>
         </div>
         <span className="font-mono text-xs text-gray-500">Live via WebSocket</span>

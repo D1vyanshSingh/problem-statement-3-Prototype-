@@ -10,10 +10,12 @@ export default function WorkersPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'online' | 'offline'>('all');
+  const [removed, setRemoved] = useState<Set<string>>(new Set()); // ids hidden client-side after clear
 
   const online = s.workers.filter((w) => w.status === 'online');
-  const offline = s.workers.filter((w) => w.status === 'offline');
-  const shown = filter === 'all' ? s.workers : filter === 'online' ? online : offline;
+  const offline = s.workers.filter((w) => w.status === 'offline' && !removed.has(w.id));
+  const visible = s.workers.filter((w) => !removed.has(w.id));
+  const shown = filter === 'all' ? visible : filter === 'online' ? online : offline;
 
   const run = async (fn: () => Promise<void>) => {
     if (busy) return;
@@ -36,6 +38,18 @@ export default function WorkersPage() {
   const kill = (w: Worker) =>
     run(async () => {
       await api(`/api/admin/chaos/kill-worker/${w.name}`, { method: 'POST' });
+    });
+
+  const clearOffline = () =>
+    run(async () => {
+      const res = await api<{ removed: string[] }>('/api/admin/chaos/clear-offline-workers', { method: 'POST' });
+      // Hide them locally too — the server has deleted the rows; the next full snapshot is already clean.
+      setRemoved((prev) => {
+        const next = new Set(prev);
+        for (const w of s.workers) if (w.status === 'offline') next.add(w.id);
+        return next;
+      });
+      window.setTimeout(() => setRemoved(new Set()), 4000); // snapshot refresh makes this redundant
     });
 
   const pause = (w: Worker) =>
@@ -83,6 +97,16 @@ export default function WorkersPage() {
               </button>
             ))}
           </div>
+          {offline.length > 0 && (
+            <button
+              onClick={clearOffline}
+              disabled={busy}
+              className="px-3 py-1.5 bg-black border border-border hover:border-red-500 text-gray-300 hover:text-red-300 font-mono text-xs rounded disabled:opacity-40 transition-colors flex items-center gap-1"
+            >
+              <Icon name="delete_sweep" className="!text-[16px]" />
+              Clear offline ({offline.length})
+            </button>
+          )}
           <button
             onClick={deploy}
             disabled={busy}

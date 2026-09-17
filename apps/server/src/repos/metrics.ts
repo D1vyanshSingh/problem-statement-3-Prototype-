@@ -4,6 +4,18 @@ import type { MetricsSnapshot, QueueSnapshot } from './tasksMetrics.js';
 export class MetricsRepo {
   constructor(private readonly pool: Pool) {}
 
+  /** Completed-task count per worker — the load-balancing proof. */
+  async completedByWorker(): Promise<Record<string, number>> {
+    const { rows } = await this.pool.query<{ assigned_worker_id: string | null; n: string }>(
+      `SELECT assigned_worker_id, count(*)::text AS n
+       FROM tasks WHERE status='completed' AND assigned_worker_id IS NOT NULL
+       GROUP BY assigned_worker_id`,
+    );
+    const out: Record<string, number> = {};
+    for (const r of rows) if (r.assigned_worker_id) out[r.assigned_worker_id] = Number(r.n);
+    return out;
+  }
+
   async queueSnapshot(): Promise<QueueSnapshot> {
     const byStatus = await this.countByStatus();
     const oldest = await this.pool.query<{ age: string | null }>(

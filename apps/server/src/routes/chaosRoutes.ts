@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { ChaosSupervisor } from '../chaos/chaosSupervisor.js';
 import type { TasksRepo } from '../repos/tasks.js';
+import type { WorkersRepo } from '../repos/workers.js';
 import { config } from '../config.js';
 
 function forbidden(reply: FastifyReply) {
@@ -9,9 +10,15 @@ function forbidden(reply: FastifyReply) {
 
 export async function chaosRoutes(
   app: FastifyInstance,
-  opts: { chaos: ChaosSupervisor | null; tasks: TasksRepo },
+  opts: { chaos: ChaosSupervisor | null; tasks: TasksRepo; workers: WorkersRepo },
 ): Promise<void> {
-  const { chaos, tasks } = opts;
+  const { chaos, tasks, workers } = opts;
+
+  // Workspace hygiene: remove offline workers that hold no active tasks.
+  app.post('/api/admin/chaos/clear-offline-workers', async (_req, reply) => {
+    const removed = await workers.deleteOffline();
+    return reply.send({ ok: true, removed, count: removed.length });
+  });
 
   // Judge-console: manually move a running task from worker A to worker B.
   app.post('/api/admin/chaos/tasks/:id/reassign', async (req, reply) => {

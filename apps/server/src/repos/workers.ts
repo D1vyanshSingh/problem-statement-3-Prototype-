@@ -142,4 +142,22 @@ export class WorkersRepo {
     );
     return Number(rows[0]?.n ?? 0);
   }
+
+  /** Remove offline workers that hold no active tasks (workspace hygiene).
+   *  Returns the names of the deleted workers. */
+  async deleteOffline(): Promise<string[]> {
+    const { rows } = await this.pool.query<{ id: string; name: string }>(
+      `DELETE FROM workers w
+       WHERE w.status = 'offline'
+         AND NOT EXISTS (
+           SELECT 1 FROM tasks t
+           WHERE t.assigned_worker_id = w.id AND t.status IN ('running','retrying')
+         )
+       RETURNING w.id, w.name`,
+    );
+    for (const r of rows) {
+      await this.events.pub('WORKER_REMOVED', { workerId: r.id, detail: { name: r.name } });
+    }
+    return rows.map((r) => r.name);
+  }
 }

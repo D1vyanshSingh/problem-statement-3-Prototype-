@@ -82,6 +82,13 @@ export default function DlqPage() {
             <Icon name="refresh" className="!text-[16px]" />
             Reprocess Selected ({selected.size})
           </button>
+          <a
+            href="/api/reports/dlq"
+            className="px-3 py-1.5 bg-black hover:bg-panel-hover border border-border hover:border-red-500 rounded text-gray-300 hover:text-red-300 flex items-center gap-1.5 transition-colors font-mono text-xs"
+          >
+            <Icon name="download" className="!text-[16px] text-red-500" />
+            Download report
+          </a>
         </div>
       </Panel>
 
