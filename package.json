@@ -1,0 +1,22 @@
+{
+  "name": "relay-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "packageManager": "pnpm@12.4.2",
+  "scripts": {
+    "dev": "tsx apps/server/src/index.ts",
+    "server": "tsx apps/server/src/index.ts",
+    "worker": "tsx apps/worker/src/index.ts",
+    "build": "pnpm -r build",
+    "typecheck": "tsc -b apps/server apps/worker packages/core",
+    "test": "vitest run --root packages/core && vitest run --root apps/server && vitest run --root apps/worker",
+    "demo:scenario": "tsx apps/server/src/demo/scenario.ts",
+    "demo:reset": "tsx apps/server/src/demo/reset.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
