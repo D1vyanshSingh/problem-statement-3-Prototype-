@@ -1,6 +1,5 @@
 import { useSnapshot, useMode, api } from '../store';
-import { Card, ConnectionDot } from '../components/ui';
-import { ShortId } from '../components/ui';
+import { Card, ConnectionDot, ShortId, StatusBadge } from '../components/ui';
 import type { Worker } from '../types';
 
 function heartbeatAge(w: Worker): string {
@@ -33,7 +32,8 @@ export default function WorkersPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {s.workers.map((w) => {
           const running = runningBy[w.id] ?? 0;
-          const isChaos = w.name.startsWith('chaos-worker-');
+          const held = s.tasks.filter((t) => t.assignedWorkerId === w.id && t.status === 'running');
+          const managed = w.name.startsWith('worker-');
           const online = w.status === 'online';
           return (
             <Card key={w.id}>
@@ -44,7 +44,7 @@ export default function WorkersPage() {
                     {w.name}
                   </div>
                   <div className="text-xs text-slate-500">
-                    <ShortId id={w.id} /> · pid {String(w.metadata?.pid ?? '?')} · heartbeat {heartbeatAge(w)}
+                    pid {String(w.metadata?.pid ?? '?')} · heartbeat {heartbeatAge(w)}
                   </div>
                 </div>
                 <span className={`text-xs px-2 py-0.5 rounded ${online ? 'bg-emerald-800/60 text-emerald-300' : 'bg-rose-900/60 text-rose-300'}`}>
@@ -52,9 +52,7 @@ export default function WorkersPage() {
                 </span>
               </div>
 
-              <div className="text-xs text-slate-400 mb-1">
-                busy {running}/{w.capacity}
-              </div>
+              <div className="text-xs text-slate-400 mb-1">busy {running}/{w.capacity}</div>
               <div className="h-2 rounded bg-slate-800 mb-3">
                 <div
                   className={`h-2 rounded ${running >= w.capacity ? 'bg-orange-500' : 'bg-sky-500'}`}
@@ -62,19 +60,25 @@ export default function WorkersPage() {
                 />
               </div>
 
-              {isChaos && (
+              {held.length > 0 && (
+                <div className="mb-3 text-xs text-slate-300 space-y-1">
+                  <div className="text-slate-500">running:</div>
+                  {held.map((t) => (
+                    <div key={t.id} className="flex items-center gap-2">
+                      <ShortId id={t.id} />
+                      <StatusBadge status={t.status} />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {managed && (
                 <div className="flex gap-2">
                   <button
                     className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs"
                     onClick={() => chaosAct(`/api/admin/chaos/pause-heartbeats/${w.name}`)}
                   >
                     Pause heartbeats
-                  </button>
-                  <button
-                    className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs"
-                    onClick={() => chaosAct(`/api/admin/chaos/resume-heartbeats/${w.name}`)}
-                  >
-                    Resume
                   </button>
                   <button
                     className="px-2 py-1 rounded bg-rose-900/70 hover:bg-rose-800 text-xs"

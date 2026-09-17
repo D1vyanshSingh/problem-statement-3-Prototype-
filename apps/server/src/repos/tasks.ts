@@ -95,12 +95,15 @@ export class TasksRepo {
     });
   }
 
-  /** Atomic batch claim: SKIP LOCKED subquery + guarded UPDATE (plan §A). */
+  /** Atomic batch claim: SKIP LOCKED subquery + guarded UPDATE (plan §A).
+   *  A task reserved for another worker is invisible here; the server delivers
+   *  reserved tasks explicitly via reassign(). */
   async claim(workerId: string, batch: number): Promise<Task[]> {
     const { rows } = await this.pool.query<TaskRow>(
       `UPDATE tasks t SET
          status='running',
          assigned_worker_id=$1,
+         reserved_for=NULL,
          lease_token=gen_random_uuid()::text,
          attempt=t.attempt+1,
          lease_expires_at=now()+make_interval(secs=>$2),
@@ -109,6 +112,7 @@ export class TasksRepo {
        FROM (
          SELECT id FROM tasks
          WHERE status IN ('pending','retrying') AND run_at <= now()
+           AND (reserved_for IS NULL OR reserved_for = $1)
          ORDER BY priority DESC, run_at ASC
          FOR UPDATE SKIP LOCKED LIMIT $3
        ) picked
@@ -178,12 +182,13 @@ export class TasksRepo {
     return rowCount ?? 0;
   }
 
-  /** Lease-expiry recovery sweep: no attempt increment (worker death, not task failure). */
+  /** Manual reprocess from DLQ (or any terminal task): attempt counter resets. */
   async recoverExpired(): Promise<Task[]> {
     const { rows } = await this.pool.query<TaskRow>(
       `UPDATE tasks SET
          status='pending',
          assigned_worker_id=NULL,
+         reserved_for=NULL,
          lease_token=NULL,
          lease_expires_at=NULL,
          updated_at=now()
@@ -242,7 +247,7 @@ export class TasksRepo {
     if (exhausted) {
       const { rows } = await this.pool.query<TaskRow>(
         `UPDATE tasks SET status='dead_letter', last_error=$2, finished_at=now(),
-           lease_token=NULL, lease_expires_at=NULL, updated_at=now()
+           lease_token=NULL, lease_expires_at=NULL, reserved_for=NULL, updated_at=now()
          WHERE id=$1 AND assigned_worker_id=$3 AND lease_token=$4 AND status='running'
          RETURNING ${COLS}`,
         [taskId, error, workerId, leaseToken],
@@ -258,7 +263,7 @@ export class TasksRepo {
     const runAt = new Date(Date.now() + this.backoffMs(cur.attempt));
     const { rows } = await this.pool.query<TaskRow>(
       `UPDATE tasks SET status='retrying', last_error=$2, run_at=$5,
-         lease_token=NULL, lease_expires_at=NULL, updated_at=now()
+         lease_token=NULL, lease_expires_at=NULL, reserved_for=NULL, updated_at=now()
        WHERE id=$1 AND assigned_worker_id=$3 AND lease_token=$4 AND status='running'
        RETURNING ${COLS}`,
       [taskId, error, workerId, leaseToken, runAt],
@@ -273,11 +278,40 @@ export class TasksRepo {
     });
   }
 
+  /** Judge-console reassignment: move a running task from worker A to worker B
+   *  mid-task. Worker A keeps its dead lease token and is fenced out of
+   *  complete/fail; worker B gets a fresh lease under its own id.
+   *  Returns null when the task isn't running or the task's current worker
+   *  doesn't match `fromWorkerId` (or that worker is unknown). */
+  async reassign(taskId: string, fromWorkerId: string, toWorkerId: string): Promise<Task | null> {
+    const cur = await this.getById(taskId);
+    if (!cur || cur.status !== 'running') return null;
+    if (cur.assignedWorkerId !== fromWorkerId) return null;
+    const { rows } = await this.pool.query<TaskRow>(
+      `UPDATE tasks SET
+         assigned_worker_id=$2,
+         reserved_for=NULL,
+         lease_token=gen_random_uuid()::text,
+         attempt=attempt+1,
+         lease_expires_at=now()+make_interval(secs=>$3),
+         updated_at=now()
+       WHERE id=$1 AND status='running'
+       RETURNING ${COLS}`,
+      [taskId, toWorkerId, this.cfg.leaseTimeoutMs / 1000],
+    );
+    const row = rows[0];
+    if (!row) return null;
+    const task = mapTask(row);
+    await this.after('RECOVERED', task, { reason: 'manual_reassign', from: fromWorkerId, to: toWorkerId });
+    return task;
+  }
+
   /** Manual reprocess from DLQ (or any terminal task): attempt counter resets. */
   async retryNow(taskId: string): Promise<Task | null> {
     const { rows } = await this.pool.query<TaskRow>(
       `UPDATE tasks SET status='pending', attempt=0, run_at=now(),
          assigned_worker_id=NULL, lease_token=NULL, lease_expires_at=NULL,
+         reserved_for=NULL,
          last_error=NULL, finished_at=NULL, started_at=NULL, updated_at=now()
        WHERE id=$1 AND status='dead_letter'
        RETURNING ${COLS}`,

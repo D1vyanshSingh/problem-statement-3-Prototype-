@@ -35,7 +35,7 @@ export class ChaosSupervisor {
 
   async spawnWorker(): Promise<{ name: string; pid: number | null }> {
     this.counter += 1;
-    const name = `chaos-worker-${this.counter}`;
+    const name = `worker-${this.counter}`;
     const child = spawn(
       process.execPath,
       [
@@ -45,7 +45,7 @@ export class ChaosSupervisor {
         '--name',
         name,
         '--capacity',
-        '3',
+        '1',
       ],
       {
         cwd: config.repoRoot,
@@ -55,7 +55,7 @@ export class ChaosSupervisor {
           ...process.env,
           RELAY_API: `http://127.0.0.1:${config.port}`,
           RELAY_NAME: name,
-          RELAY_CAPACITY: '2',
+          RELAY_CAPACITY: '1',
         },
       },
     );

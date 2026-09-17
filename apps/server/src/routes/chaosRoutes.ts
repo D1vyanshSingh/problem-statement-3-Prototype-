@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { ChaosSupervisor } from '../chaos/chaosSupervisor.js';
+import type { TasksRepo } from '../repos/tasks.js';
 import { config } from '../config.js';
 
 function forbidden(reply: FastifyReply) {
@@ -8,9 +9,25 @@ function forbidden(reply: FastifyReply) {
 
 export async function chaosRoutes(
   app: FastifyInstance,
-  opts: { chaos: ChaosSupervisor | null },
+  opts: { chaos: ChaosSupervisor | null; tasks: TasksRepo },
 ): Promise<void> {
-  const { chaos } = opts;
+  const { chaos, tasks } = opts;
+
+  // Judge-console: manually move a running task from worker A to worker B.
+  app.post('/api/admin/chaos/tasks/:id/reassign', async (req, reply) => {
+    const b = (req.body ?? {}) as { fromWorkerId?: unknown; toWorkerId?: unknown };
+    if (typeof b.fromWorkerId !== 'string' || typeof b.toWorkerId !== 'string') {
+      return reply.code(400).send({ error: 'fromWorkerId and toWorkerId required' });
+    }
+    const { id } = req.params as { id: string };
+    const task = await tasks.reassign(id, b.fromWorkerId, b.toWorkerId);
+    if (!task) {
+      return reply
+        .code(409)
+        .send({ error: 'task not running on fromWorkerId (already moved, completed, or finished)' });
+    }
+    return task;
+  });
 
   app.post('/api/admin/chaos/spawn-worker', async (_req, reply) => {
     if (!chaos) return forbidden(reply);

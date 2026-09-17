@@ -84,7 +84,7 @@ export async function startServer(opts: { spawnInitialWorkers?: boolean } = {}):
   await app.register(taskRoutes, { tasks, events });
   await app.register(workerRoutes, { workers, tasks, chaos });
   await app.register(systemRoutes, { tasks, metrics });
-  if (chaos) await app.register(chaosRoutes, { chaos });
+  if (chaos) await app.register(chaosRoutes, { chaos, tasks });
 
   let recentTasksCache: Awaited<ReturnType<TasksRepo['list']>> = [];
   let workersCache: Awaited<ReturnType<WorkersRepo['list']>> = [];

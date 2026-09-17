@@ -5,7 +5,8 @@ import OverviewPage from './pages/OverviewPage';
 import WorkersPage from './pages/WorkersPage';
 import TasksPage from './pages/TasksPage';
 import DlqPage from './pages/DlqPage';
-import DemoPage from './pages/DemoPage';
+import OperationsPage from './pages/OperationsPage';
+import FailoverPage from './pages/FailoverPage';
 import { startLive } from './store';
 import './index.css';
 
@@ -23,12 +24,13 @@ function App() {
               <span className="text-xs text-slate-500">task platform</span>
             </div>
             <nav className="flex gap-1 text-sm">
-              {[
+              {              [
                 ['/', 'Overview'],
+                ['/operations', 'Operations'],
+                ['/failover', 'Failover'],
                 ['/workers', 'Workers'],
                 ['/tasks', 'Tasks'],
                 ['/dlq', 'DLQ'],
-                ['/demo', 'Demo'],
               ].map(([to, label]) => (
                 <NavLink
                   key={to}
@@ -51,7 +53,8 @@ function App() {
             <Route path="/workers" element={<WorkersPage />} />
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/dlq" element={<DlqPage />} />
-            <Route path="/demo" element={<DemoPage />} />
+            <Route path="/operations" element={<OperationsPage />} />
+            <Route path="/failover" element={<FailoverPage />} />
           </Routes>
         </main>
       </div>

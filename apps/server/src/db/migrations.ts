@@ -2,7 +2,7 @@ import { Pool } from 'pg';
 import { logger } from '../util.js';
 
 const log = logger.child({ mod: 'migrate' });
-const MIGRATIONS: readonly string[] = [m001()];
+const MIGRATIONS: readonly string[] = [m001(), m002()];
 
 export async function migrate(pool: Pool): Promise<void> {
   const c = await pool.connect();
@@ -84,5 +84,14 @@ CREATE INDEX IF NOT EXISTS task_events_task_idx ON task_events (task_id, id);
 CREATE INDEX IF NOT EXISTS task_events_recent_idx ON task_events (id DESC);
 
 CREATE TABLE IF NOT EXISTS meta (key text PRIMARY KEY, value text NOT NULL);
+`;
+}
+
+/** Judge-console reassignment: pin a pending task to a specific worker. */
+function m002(): string {
+  return `
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reserved_for uuid;
+CREATE INDEX IF NOT EXISTS tasks_reserved_idx ON tasks (reserved_for)
+  WHERE reserved_for IS NOT NULL;
 `;
 }
