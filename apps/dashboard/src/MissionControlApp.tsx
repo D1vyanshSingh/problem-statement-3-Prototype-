@@ -34,7 +34,7 @@ function Shell() {
 
   const badgeFor = (key: string) => {
     if (key === 'workers') return online;
-    if (key === 'tasks') return (s.queue.byStatus.pending ?? 0) || null;
+    if (key === 'tasks') return s.tasks.length || null;
     if (key === 'dlq') return dlq > 0 ? dlq : null;
     return null;
   };
@@ -119,6 +119,10 @@ function Shell() {
             </h1>
           </div>
           <div className="flex items-center gap-2 text-xs font-mono shrink-0">
+            <span className="sm:hidden inline-flex items-center gap-1.5 bg-panel px-2 py-1 rounded border border-border text-[10px] text-white">
+              <Dot color={mode === 'live' ? 'red' : 'gray'} pulse={mode === 'live'} />
+              {mode === 'live' ? 'Live (WS)' : mode === 'polling' ? 'Polling' : '…'}
+            </span>
             <div className="hidden sm:flex items-center gap-2 bg-panel px-2.5 py-1 rounded border border-border">
               <span className="text-gray-500 text-[11px]">THROUGHPUT:</span>
               <span className="text-white font-semibold flex items-center gap-0.5">
@@ -126,7 +130,7 @@ function Shell() {
                 {recentOps} <span className="text-gray-500 font-normal text-[10px]">ops/min</span>
               </span>
             </div>
-            <div className="flex items-center gap-1.5 bg-panel px-2 py-1 rounded border border-border">
+            <div className="hidden min-[420px]:flex items-center gap-1.5 bg-panel px-2 py-1 rounded border border-border">
               <span className="text-gray-500 text-[11px] hidden min-[400px]:inline">DLQ:</span>
               <span className="text-red-400 font-semibold flex items-center gap-1 text-[11px]">
                 <Dot color={dlq > 0 ? 'red' : 'gray'} pulse={dlq > 0} />
@@ -139,7 +143,32 @@ function Shell() {
             </div>
           </div>
         </header>
-        <main className="flex-1 p-3 sm:p-6 overflow-y-auto space-y-6 pb-24 md:pb-6">
+
+        {/* Mobile tab pills — horizontal scroller under the header */}
+        <div className="md:hidden sticky top-14 z-20 bg-black/95 backdrop-blur border-b border-border px-3 py-2 flex gap-2 overflow-x-auto no-scrollbar">
+          {TABS.map((t) => {
+            const isActive = active === t.key;
+            const badge = badgeFor(t.key);
+            return (
+              <button
+                key={t.key}
+                onClick={() => navigate(t.path)}
+                className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border font-mono text-[11px] transition-colors ${
+                  isActive
+                    ? 'bg-red-950/60 border-red-500 text-white'
+                    : 'bg-panel border-border text-gray-400'
+                }`}
+              >
+                {t.label}
+                {typeof badge === 'number' && badge > 0 && (
+                  <span className={t.key === 'dlq' ? 'text-red-400 font-bold' : 'text-gray-500'}>{badge}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        <main className="flex-1 p-3 sm:p-6 overflow-y-auto space-y-6 pb-6">
           <Routes>
             <Route path="/" element={<OverviewPage />} />
             <Route path="/workers" element={<WorkersPage />} />
@@ -149,37 +178,6 @@ function Shell() {
             <Route path="*" element={<OverviewPage />} />
           </Routes>
         </main>
-
-        {/* Mobile bottom tab bar */}
-        <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-bg-secondary/95 backdrop-blur border-t border-border flex">
-          {TABS.map((t) => {
-            const isActive = active === t.key;
-            const badge = badgeFor(t.key);
-            return (
-              <button
-                key={t.key}
-                onClick={() => navigate(t.path)}
-                className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-mono transition-colors relative ${
-                  isActive ? 'text-red-400' : 'text-gray-500'
-                }`}
-              >
-                <span className="relative">
-                  <Icon name={t.icon} className="!text-[20px]" />
-                  {t.key === 'dlq' && dlq > 0 && (
-                    <span className="absolute -top-1 -right-2 w-3.5 h-3.5 rounded-full bg-red-600 text-white text-[8px] font-bold flex items-center justify-center">
-                      {dlq > 9 ? '9+' : dlq}
-                    </span>
-                  )}
-                  {t.key === 'demo' && (
-                    <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-red-500 pulse-live" />
-                  )}
-                </span>
-                {t.label}
-                {isActive && <span className="absolute top-0 inset-x-4 h-0.5 bg-red-500 rounded-full" />}
-              </button>
-            );
-          })}
-        </nav>
       </div>
     </div>
   );

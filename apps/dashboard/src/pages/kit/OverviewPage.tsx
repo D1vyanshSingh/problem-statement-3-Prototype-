@@ -11,6 +11,7 @@ function MetricCard({
   accent = 'text-white',
   badge,
   sub,
+  capBar,
   danger = false,
   onBadgeClick,
 }: {
@@ -19,6 +20,7 @@ function MetricCard({
   accent?: string;
   badge?: React.ReactNode;
   sub?: React.ReactNode;
+  capBar?: number;
   danger?: boolean;
   onBadgeClick?: () => void;
 }) {
@@ -29,6 +31,11 @@ function MetricCard({
         {badge}
       </div>
       <div className={`font-mono text-lg sm:text-xl font-bold my-1 ${accent}`}>{value}</div>
+      {typeof capBar === 'number' && (
+        <div className="w-full bg-black h-1 rounded-full overflow-hidden border border-border mb-1">
+          <div className="h-full bg-gradient-to-r from-gray-500 to-red-500" style={{ width: `${capBar}%` }} />
+        </div>
+      )}
       {sub && <div className="text-[10px] font-mono text-gray-400">{sub}</div>}
     </Panel>
   );
@@ -52,6 +59,7 @@ function ThroughputChart({ events }: { events: { createdAt: string; type: string
   }, [events]);
 
   const max = Math.max(4, ...buckets);
+  const peak = Math.max(...buckets);
   const w = 700;
   const h = 180;
   const step = w / (buckets.length - 1);
@@ -89,10 +97,12 @@ function ThroughputChart({ events }: { events: { createdAt: string; type: string
           {area && <path d={area} fill="url(#red-chart-gradient)" />}
           {line && <path d={line} fill="none" stroke="#EF4444" strokeWidth="2.2" />}
         </svg>
-        <div className="absolute right-3 top-2 flex items-center gap-1.5 font-mono text-[11px] text-white bg-black/90 px-2 py-0.5 rounded border border-border">
-          <Dot color="red" pulse />
-          CURRENT: {last} ops/2s
-        </div>
+        {peak > 0 && (
+          <div className="absolute right-3 top-2 flex items-center gap-1.5 font-mono text-[11px] text-white bg-black/90 px-2 py-0.5 rounded border border-border">
+            <Icon name="trending_up" className="!text-[14px] text-red-500" />
+            PEAK: {peak} ops/2s
+          </div>
+        )}
       </div>
       <div className="flex justify-between font-mono text-[10px] text-gray-500 pt-2 border-t border-border mt-2">
         <span>-2m</span>
@@ -130,6 +140,7 @@ export default function OverviewPage() {
         <MetricCard
           label="Queue Depth"
           value={fmt((q.pending ?? 0) + (q.retrying ?? 0) + (q.scheduled ?? 0))}
+          capBar={runningTotal ? Math.min(100, Math.round((runningTotal / capacity) * 100)) : 0}
           sub={
             <span className="flex justify-between">
               <span>Cap: {fmt(capacity * 10)}</span>
@@ -146,12 +157,10 @@ export default function OverviewPage() {
           sub={<span><span className="text-white font-medium">{online.length}</span> workers active</span>}
         />
         <MetricCard label="Completed" value={fmt(m.completedTotal)} sub={`${m.successRatePct ?? 100}% success rate`} />
-        <MetricCard label="Failed" value={fmt(m.failedTotal)} accent="text-red-500" sub="Dead-lettered total" danger />
-        <MetricCard label="Retries" value={fmt(m.retriedTotal)} accent="text-red-400" sub="Backoff re-queues" />
-        <MetricCard label="Recoveries" value={fmt(m.recoveredTotal)} sub="Leases auto-healed" />
+        <MetricCard label="Retries" value={fmt(m.retriedTotal)} accent="text-red-400" sub={`Recovered: ${fmt(m.recoveredTotal)}`} />
         <MetricCard
-          label="DLQ Size"
-          value={fmt(m.dlqSize)}
+          label="DLQ / Failed"
+          value={`${fmt(m.dlqSize)} / ${fmt(m.failedTotal)}`}
           danger
           badge={<Icon name="warning" className="!text-[14px] text-red-500" />}
           sub={
