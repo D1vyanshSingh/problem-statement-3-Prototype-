@@ -1,5 +1,5 @@
 {
-  "name": "@relay/dashboard",
+  "name": "@vitals/dashboard",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
