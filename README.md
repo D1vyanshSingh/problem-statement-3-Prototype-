@@ -1,4 +1,4 @@
-# ⚡ Relay — Distributed Background Task Processing Platform
+# ⚡ Vitals — Distributed Background Task Processing Platform
 
 Fault-tolerant background job processing with multi-worker dispatch, heartbeat-based failure detection, automatic task recovery and reassignment, retries with Dead-Letter Queue, scheduled jobs, and a real-time WebSocket dashboard.
 
