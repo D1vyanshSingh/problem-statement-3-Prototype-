@@ -23,12 +23,12 @@ function MetricCard({
   onBadgeClick?: () => void;
 }) {
   return (
-    <Panel className={`p-3.5 flex flex-col justify-between hover:border-red-500/40 transition-colors ${danger ? 'border-red-900/60 hover:border-red-600' : ''}`}>
-      <div className="flex items-center justify-between text-gray-400 text-[11px]">
-        <span className={danger ? 'text-red-400 font-medium' : ''}>{label}</span>
+    <Panel className={`p-2.5 sm:p-3.5 flex flex-col justify-between hover:border-red-500/40 transition-colors ${danger ? 'border-red-900/60 hover:border-red-600' : ''}`}>
+      <div className="flex items-center justify-between text-gray-400 text-[10px] sm:text-[11px] gap-1">
+        <span className={`${danger ? 'text-red-400 font-medium' : ''} truncate`}>{label}</span>
         {badge}
       </div>
-      <div className={`font-mono text-xl font-bold my-1 ${accent}`}>{value}</div>
+      <div className={`font-mono text-lg sm:text-xl font-bold my-1 ${accent}`}>{value}</div>
       {sub && <div className="text-[10px] font-mono text-gray-400">{sub}</div>}
     </Panel>
   );
@@ -125,8 +125,8 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-6">
-      {/* Top metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+      {/* Top metrics — 2 cols on tiny phones, 4 on sm, 7 on lg */}
+      <div className="grid grid-cols-2 min-[420px]:grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3">
         <MetricCard
           label="Queue Depth"
           value={fmt((q.pending ?? 0) + (q.retrying ?? 0) + (q.scheduled ?? 0))}
@@ -215,7 +215,7 @@ export default function OverviewPage() {
       </div>
 
       {/* Fleet roster */}
-      <Panel className="p-5 space-y-4 font-mono">
+      <Panel className="p-3 sm:p-5 space-y-4 font-mono">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded bg-black border border-border flex items-center justify-center text-red-500">
@@ -238,7 +238,7 @@ export default function OverviewPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-3">
           <div className="bg-black border border-border rounded-lg p-3.5">
             <div className="flex items-center justify-between text-gray-400 text-[11px]">
               <span className="flex items-center gap-1.5 text-white font-medium">
@@ -307,15 +307,56 @@ export default function OverviewPage() {
         </div>
 
         <div className="border border-border rounded-lg bg-black overflow-hidden">
-          <div className="px-3.5 py-2 bg-panel-hover border-b border-border flex items-center justify-between text-[11px] text-gray-400">
+          <div className="px-3 py-2 bg-panel-hover border-b border-border flex flex-wrap items-center justify-between gap-1 text-[11px] text-gray-400">
             <span className="font-semibold text-white flex items-center gap-1.5">
-              <Icon name="dns" className="!text-[15px] text-red-500" /> Worker Nodes Detailed Lifecycle Roster
+              <Icon name="dns" className="!text-[15px] text-red-500" /> Worker Nodes — Lifecycle Roster
             </span>
             <span className="text-gray-500">
-              {s.workers.length} Total Monitored Units ({online.length} Online • {offline.length} Offline)
+              {s.workers.length} units ({online.length} online • {offline.length} offline)
             </span>
           </div>
-          <div className="overflow-x-auto">
+          {/* Card list on mobile, table on desktop */}
+          <div className="md:hidden divide-y divide-border">
+            {s.workers.map((w) => {
+              const held = statusOf(w);
+              const isOnline = w.status === 'online';
+              return (
+                <div key={w.id} className={`px-3 py-2.5 ${!isOnline ? 'bg-red-950/20 border-l-2 border-red-500' : ''}`}>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-semibold flex items-center gap-2 ${isOnline ? 'text-white' : 'text-red-400'}`}>
+                      <Dot color={isOnline ? 'white' : 'red'} pulse={!isOnline} />
+                      {w.name}
+                    </span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[9px] font-mono inline-flex items-center gap-1 ${
+                        isOnline
+                          ? 'bg-panel-hover border border-gray-600 text-white'
+                          : 'bg-red-950/80 border border-red-800 text-red-400 font-bold'
+                      }`}
+                    >
+                      {isOnline ? 'ONLINE' : 'OFFLINE (LOST)'}
+                    </span>
+                  </div>
+                  <div className="mt-1 grid grid-cols-3 gap-2 text-[10px] font-mono text-gray-400">
+                    <span>
+                      Leases:{' '}
+                      <span className={isOnline ? 'text-white' : 'text-red-400'}>
+                        {held.length > 0 ? held.length : '0'}
+                      </span>
+                    </span>
+                    <span>
+                      Beat: <span className={isOnline ? 'text-gray-300' : 'text-red-400'}>{timeAgo(w.lastHeartbeatAt, now)}</span>
+                    </span>
+                    <span className="text-right">
+                      Health: <span className={isOnline ? 'text-gray-300' : 'text-red-400'}>{isOnline ? 'Nominal' : 'Timeout'}</span>
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+            {s.workers.length === 0 && <div className="py-4 text-center text-gray-500 text-xs">No workers registered.</div>}
+          </div>
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-xs font-mono">
               <thead>
                 <tr className="text-[11px] text-gray-500 border-b border-border bg-black">

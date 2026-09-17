@@ -249,12 +249,12 @@ export default function ChaosPage() {
   return (
     <div className="space-y-6">
       {/* Hero */}
-      <Panel className="p-6 flex flex-col items-center text-center space-y-4 shadow-xl">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black border border-border font-mono text-xs text-red-400">
+      <Panel className="p-4 sm:p-6 flex flex-col items-center text-center space-y-3 sm:space-y-4 shadow-xl">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black border border-border font-mono text-[10px] sm:text-xs text-red-400">
           <Dot color="red" pulse />
           LIVE EVALUATION SUITE
         </div>
-        <h2 className="text-2xl font-bold text-white tracking-tight">Self-Healing Worker Failover</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Self-Healing Worker Failover</h2>
         <p className="text-xs text-gray-400 max-w-xl leading-relaxed">
           Terminate an active worker node mid-task with a real <code className="text-red-400 font-mono font-bold">SIGKILL -9</code>.
           Watch Vitals detect heartbeat loss, steal the stale lease, and reassign the task — with fencing tokens preventing duplicate execution.
@@ -284,7 +284,7 @@ export default function ChaosPage() {
       )}
 
       {/* 5-stage tracker */}
-      <Panel className="py-7 px-8 overflow-x-auto">
+      <Panel className="py-5 px-3 sm:py-7 sm:px-8 overflow-x-auto">
         <div className="min-w-[650px] relative">
           <div className="absolute top-5 left-8 right-8 h-1 bg-border -z-0">
             <div
@@ -315,7 +315,7 @@ export default function ChaosPage() {
       </Panel>
 
       {/* Load test / load balancing */}
-      <Panel className="p-5 space-y-4">
+      <Panel className="p-3 sm:p-5 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded bg-black border border-border flex items-center justify-center text-red-500">
@@ -398,7 +398,7 @@ export default function ChaosPage() {
       </Panel>
 
       {/* Fencing simulation */}
-      <Panel className="p-5 space-y-4">
+      <Panel className="p-3 sm:p-5 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded bg-black border border-border flex items-center justify-center text-red-500">
@@ -461,7 +461,7 @@ export default function ChaosPage() {
       </Panel>
 
       {/* Terminal + guarantee */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 items-start">
         <Panel className="lg:col-span-2 border-border overflow-hidden flex flex-col font-mono text-xs shadow-inner !bg-black">
           <div className="bg-panel px-4 py-2 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -499,7 +499,7 @@ export default function ChaosPage() {
           </div>
         </Panel>
 
-        <Panel className="p-5 flex flex-col justify-between space-y-4">
+        <Panel className="p-3 sm:p-5 flex flex-col justify-between space-y-4">
           <div>
             <div className="flex items-center gap-2 text-white mb-2 font-mono text-xs font-semibold">
               <Icon name="verified_user" className="!text-[18px] text-red-500" />

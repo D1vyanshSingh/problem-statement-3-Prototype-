@@ -47,7 +47,7 @@ export default function DlqPage() {
       )}
 
       {/* Alert banner + bulk actions */}
-      <Panel className="border-red-900/70 p-4 flex flex-wrap items-center justify-between gap-4">
+      <Panel className="border-red-900/70 p-3 sm:p-4 flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-red-950/80 border border-red-800 flex items-center justify-center text-red-400 shadow-[0_0_14px_rgba(239,68,68,0.3)]">
             <Icon name="warning" className="!text-[22px]" />
@@ -64,8 +64,8 @@ export default function DlqPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 font-mono text-xs">
-          <label className="flex items-center gap-2 text-gray-400 bg-black border border-border px-3 py-1.5 rounded cursor-pointer hover:border-gray-500">
+        <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
+          <label className="flex items-center gap-2 text-gray-400 bg-black border border-border px-3 py-2 sm:py-1.5 rounded cursor-pointer hover:border-gray-500 active:bg-panel-hover">
             <input
               type="checkbox"
               className="accent-red-500 rounded"
@@ -77,7 +77,7 @@ export default function DlqPage() {
           <button
             onClick={() => reprocess([...selected])}
             disabled={busy || selected.size === 0}
-            className="px-3 py-1.5 bg-red-600 text-white font-semibold rounded hover:bg-red-500 disabled:opacity-40 flex items-center gap-1.5 transition-colors shadow-[0_0_12px_rgba(239,68,68,0.35)]"
+            className="px-4 py-2 sm:px-3 sm:py-1.5 bg-red-600 text-white font-semibold rounded hover:bg-red-500 disabled:opacity-40 flex items-center justify-center gap-1.5 transition-colors shadow-[0_0_12px_rgba(239,68,68,0.35)] active:bg-red-700"
           >
             <Icon name="refresh" className="!text-[16px]" />
             Reprocess Selected ({selected.size})
@@ -95,7 +95,7 @@ export default function DlqPage() {
       {/* DLQ cards */}
       <div className="space-y-3">
         {dlqTasks.map((t: Task) => (
-          <Panel key={t.id} className="hover:border-red-800/80 p-4 transition-all">
+          <Panel key={t.id} className="hover:border-red-800/80 p-3 sm:p-4 transition-all">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-3">
                 <input

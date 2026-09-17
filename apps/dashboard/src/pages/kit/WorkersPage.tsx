@@ -66,15 +66,15 @@ export default function WorkersPage() {
       )}
 
       {/* Control header */}
-      <Panel className="p-4 flex flex-wrap items-center justify-between gap-4">
+      <Panel className="p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-white tracking-wide">Orchestrated Worker Fleet</h2>
           <p className="text-[11px] font-mono text-gray-500">
             {online.length} active nodes • {offline.length} offline • capacity {online.reduce((a, w) => a + w.capacity, 0)} tasks
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center bg-black rounded border border-border p-1 font-mono text-xs">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <div className="flex items-center bg-black rounded border border-border p-1 font-mono text-xs flex-wrap">
             {(
               [
                 ['all', `All (${s.workers.length})`],
@@ -119,16 +119,15 @@ export default function WorkersPage() {
       </Panel>
 
       {/* Worker cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {shown.map((w) => {
           const held = heldBy(w);
           const isOnline = w.status === 'online';
           const cap = Math.max(1, w.capacity);
           const util = Math.min(100, (held.length / cap) * 100);
-          return (
-            <Panel
+          return (              <Panel
               key={w.id}
-              className={`p-4 flex flex-col justify-between hover:border-red-500/40 transition-all ${!isOnline ? 'border-red-900/70' : ''}`}
+              className={`p-3 sm:p-4 flex flex-col justify-between hover:border-red-500/40 transition-all ${!isOnline ? 'border-red-900/70' : ''}`}
             >
               <div>
                 <div className="flex items-center justify-between">

@@ -157,10 +157,10 @@ export default function TasksPage() {
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <Panel className="p-3.5 flex flex-wrap items-center justify-between gap-3">
+      <Panel className="p-3 flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-mono text-gray-400">Filters:</span>
-          <div className="flex items-center gap-1 bg-black border border-border rounded p-1 text-xs font-mono">
+          <span className="text-xs font-mono text-gray-400 hidden sm:inline">Filters:</span>
+          <div className="flex items-center gap-1 bg-black border border-border rounded p-1 text-xs font-mono overflow-x-auto max-w-full">
             {(['all', 'running', 'pending', 'retrying', 'completed', 'dead_letter'] as const).map((st) => (
               <button
                 key={st}
@@ -173,12 +173,12 @@ export default function TasksPage() {
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-1 bg-black border border-border rounded p-1 text-xs font-mono">
+          <div className="flex items-center gap-1 bg-black border border-border rounded p-1 text-xs font-mono overflow-x-auto max-w-full">
             {(
               [
                 ['sleep', 'Normal (60s)'],
-                ['flaky', 'Fails 2x then succeeds'],
-                ['always_fail', 'Always fails (→ DLQ)'],
+                ['flaky', 'Fails 2x → success'],
+                ['always_fail', 'Always fails → DLQ'],
               ] as const
             ).map(([k, label]) => (
               <button
@@ -199,16 +199,16 @@ export default function TasksPage() {
           <button
             onClick={newTask}
             disabled={busy}
-            className="px-3 py-1.5 bg-red-600 text-white font-mono text-xs font-semibold rounded hover:bg-red-500 disabled:opacity-40 flex items-center gap-1"
+            className="px-4 py-2 sm:px-3 sm:py-1.5 bg-red-600 text-white font-mono text-xs font-semibold rounded hover:bg-red-500 disabled:opacity-40 flex items-center justify-center gap-1 active:bg-red-700"
           >
             <Icon name="add" className="!text-[16px]" /> New task
           </button>
         </div>
-        <span className="font-mono text-xs text-gray-500">Live via WebSocket</span>
+        <span className="font-mono text-[10px] text-gray-500 hidden sm:inline">Live via WebSocket</span>
       </Panel>
 
       {/* Table + drawer */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 items-start">
         <div className="lg:col-span-7 bg-panel border border-border rounded-lg overflow-hidden shadow-lg">
           <div className="p-3 border-b border-border flex items-center justify-between bg-black">
             <div className="flex items-center gap-2">
@@ -217,7 +217,40 @@ export default function TasksPage() {
             </div>
             <span className="text-[10px] font-mono text-gray-500">Showing {Math.min(filtered.length, 20)} of {filtered.length} tasks</span>
           </div>
-          <div className="overflow-x-auto">
+          {/* Card list on mobile, table on desktop */}
+          <div className="lg:hidden divide-y divide-border">
+            {filtered.slice(0, 20).map((t) => {
+              const isSel = t.id === selectedId;
+              const workerName = t.assignedWorkerId
+                ? s.workers.find((w) => w.id === t.assignedWorkerId)?.name ?? shortId(t.assignedWorkerId)
+                : null;
+              return (
+                <div
+                  key={t.id}
+                  onClick={() => setSelectedId(isSel ? null : t.id)}
+                  className={`px-3 py-2.5 cursor-pointer transition-colors ${isSel ? 'bg-[#181A20] border-l-2 border-red-500' : 'active:bg-panel-hover'}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`font-mono text-xs font-semibold ${isSel ? 'text-red-400' : 'text-gray-300'}`}>
+                      {shortId(t.id)}
+                    </span>
+                    <StatusBadge status={t.status} />
+                  </div>
+                  <div className="mt-1 flex items-center justify-between font-mono text-[10px] text-gray-400">
+                    <span className="truncate">
+                      {workerName ?? (t.status === 'pending' || t.status === 'retrying' ? <span className="text-red-400">no worker available</span> : '—')}
+                      {' · '}{t.type}
+                    </span>
+                    <span className={t.attempt > 1 ? 'text-red-300 font-bold' : ''}>
+                      {t.attempt}/{t.maxAttempts} · {timeAgo(t.createdAt)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+            {filtered.length === 0 && <div className="py-4 text-center text-gray-500 text-xs">No tasks match this filter.</div>}
+          </div>
+          <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-left font-mono text-xs">
               <thead>
                 <tr className="text-[11px] text-gray-400 border-b border-border bg-panel">
@@ -273,7 +306,7 @@ export default function TasksPage() {
         </div>
 
         {/* Detail drawer */}
-        <div className="lg:col-span-5 bg-panel border border-border rounded-lg p-5 space-y-5 shadow-2xl">
+        <div className="lg:col-span-5 bg-panel border border-border rounded-lg p-3 sm:p-5 space-y-5 shadow-2xl">
           {!selected ? (
             <div className="flex flex-col items-center justify-center text-center py-16 text-gray-500">
               <Icon name="touch_app" className="!text-[32px] text-border-light" />

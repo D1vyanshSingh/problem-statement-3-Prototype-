@@ -32,10 +32,17 @@ function Shell() {
   const dlq = s.metrics.dlqSize;
   const recentOps = feed.filter((e) => ['LEASED', 'COMPLETED'].includes(e.type)).length;
 
+  const badgeFor = (key: string) => {
+    if (key === 'workers') return online;
+    if (key === 'tasks') return (s.queue.byStatus.pending ?? 0) || null;
+    if (key === 'dlq') return dlq > 0 ? dlq : null;
+    return null;
+  };
+
   return (
     <div className="bg-black text-gray-200 font-sans antialiased min-h-screen flex selection:bg-red-950 selection:text-red-300">
-      {/* Sidebar */}
-      <aside className="w-56 bg-bg-secondary border-r border-border flex flex-col justify-between shrink-0 h-screen sticky top-0 z-40 select-none">
+      {/* Sidebar — hidden on mobile, bottom tab bar instead */}
+      <aside className="hidden md:flex w-56 bg-bg-secondary border-r border-border flex-col justify-between shrink-0 h-screen sticky top-0 z-40 select-none">
         <div>
           <div className="h-14 px-4 flex items-center gap-2.5 border-b border-border bg-black">
             <div className="w-7 h-7 rounded-lg bg-panel border border-border flex items-center justify-center font-mono font-bold text-sm shadow-[0_0_14px_rgba(239,68,68,0.4)]">
@@ -99,13 +106,19 @@ function Shell() {
 
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0 bg-black">
-        <header className="h-14 px-6 border-b border-border bg-bg-secondary/90 backdrop-blur sticky top-0 z-30 flex items-center justify-between gap-4">
-          <h1 className="font-semibold text-sm text-white tracking-wide flex items-center gap-2">
-            <span>Mission Control</span>
-            <span className="text-gray-600 font-normal">/</span>
-            <span className="text-red-400 font-mono text-xs font-normal capitalize">{active}</span>
-          </h1>
-          <div className="flex items-center gap-3 text-xs font-mono">
+        <header className="h-14 px-3 sm:px-6 border-b border-border bg-bg-secondary/90 backdrop-blur sticky top-0 z-30 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            {/* Mobile brand */}
+            <div className="md:hidden w-7 h-7 rounded-lg bg-panel border border-border flex items-center justify-center shrink-0">
+              <Icon name="bolt" className="!text-[18px] text-red-500" />
+            </div>
+            <h1 className="font-semibold text-sm text-white tracking-wide flex items-center gap-2 min-w-0">
+              <span className="hidden sm:inline">Mission Control</span>
+              <span className="hidden sm:inline text-gray-600 font-normal">/</span>
+              <span className="text-red-400 font-mono text-xs font-normal capitalize truncate">{active}</span>
+            </h1>
+          </div>
+          <div className="flex items-center gap-2 text-xs font-mono shrink-0">
             <div className="hidden sm:flex items-center gap-2 bg-panel px-2.5 py-1 rounded border border-border">
               <span className="text-gray-500 text-[11px]">THROUGHPUT:</span>
               <span className="text-white font-semibold flex items-center gap-0.5">
@@ -113,11 +126,11 @@ function Shell() {
                 {recentOps} <span className="text-gray-500 font-normal text-[10px]">ops/min</span>
               </span>
             </div>
-            <div className="flex items-center gap-2 bg-panel px-2.5 py-1 rounded border border-border">
-              <span className="text-gray-500 text-[11px]">DLQ:</span>
-              <span className="text-red-400 font-semibold flex items-center gap-1">
+            <div className="flex items-center gap-1.5 bg-panel px-2 py-1 rounded border border-border">
+              <span className="text-gray-500 text-[11px] hidden min-[400px]:inline">DLQ:</span>
+              <span className="text-red-400 font-semibold flex items-center gap-1 text-[11px]">
                 <Dot color={dlq > 0 ? 'red' : 'gray'} pulse={dlq > 0} />
-                {dlq} <span className="text-gray-500 font-normal text-[10px]">tasks</span>
+                {dlq}
               </span>
             </div>
             <div className="hidden md:flex items-center gap-2 bg-panel px-2.5 py-1 rounded border border-border">
@@ -126,7 +139,7 @@ function Shell() {
             </div>
           </div>
         </header>
-        <main className="flex-1 p-6 overflow-y-auto space-y-6">
+        <main className="flex-1 p-3 sm:p-6 overflow-y-auto space-y-6 pb-24 md:pb-6">
           <Routes>
             <Route path="/" element={<OverviewPage />} />
             <Route path="/workers" element={<WorkersPage />} />
@@ -136,6 +149,37 @@ function Shell() {
             <Route path="*" element={<OverviewPage />} />
           </Routes>
         </main>
+
+        {/* Mobile bottom tab bar */}
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-bg-secondary/95 backdrop-blur border-t border-border flex">
+          {TABS.map((t) => {
+            const isActive = active === t.key;
+            const badge = badgeFor(t.key);
+            return (
+              <button
+                key={t.key}
+                onClick={() => navigate(t.path)}
+                className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-mono transition-colors relative ${
+                  isActive ? 'text-red-400' : 'text-gray-500'
+                }`}
+              >
+                <span className="relative">
+                  <Icon name={t.icon} className="!text-[20px]" />
+                  {t.key === 'dlq' && dlq > 0 && (
+                    <span className="absolute -top-1 -right-2 w-3.5 h-3.5 rounded-full bg-red-600 text-white text-[8px] font-bold flex items-center justify-center">
+                      {dlq > 9 ? '9+' : dlq}
+                    </span>
+                  )}
+                  {t.key === 'demo' && (
+                    <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-red-500 pulse-live" />
+                  )}
+                </span>
+                {t.label}
+                {isActive && <span className="absolute top-0 inset-x-4 h-0.5 bg-red-500 rounded-full" />}
+              </button>
+            );
+          })}
+        </nav>
       </div>
     </div>
   );
