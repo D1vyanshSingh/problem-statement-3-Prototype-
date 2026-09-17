@@ -7,7 +7,7 @@ import { Pool } from 'pg';
 import type { WebSocket } from 'ws';
 import { config } from './config.js';
 import { logger, sleep } from './util.js';
-import { ensurePostgres, waitForPostgres, ensureRelayDatabase } from './embeddedPg.js';
+import { ensurePostgres, waitForPostgres, ensureVitalsDatabase } from './embeddedPg.js';
 import { makePool } from './db/pool.js';
 import { migrate } from './db/migrations.js';
 import { EventBus, type LiveSnapshot } from './events/bus.js';
@@ -37,7 +37,7 @@ export async function startServer(opts: { spawnInitialWorkers?: boolean } = {}):
   await waitForPostgres();
 
   const pool = makePool();
-  await ensureRelayDatabase();
+  await ensureVitalsDatabase();
   await migrate(pool);
 
   const bus = new EventBus();
@@ -57,7 +57,7 @@ export async function startServer(opts: { spawnInitialWorkers?: boolean } = {}):
   const chaos = config.chaosEnabled
     ? new ChaosSupervisor(tasks, workers, pool)
     : null;
-  (globalThis as Record<string, unknown>).__relayChaos = chaos;
+  (globalThis as Record<string, unknown>).__vitalsChaos = chaos;
 
   const app = Fastify({ logger: false });
   app.addContentTypeParser(
@@ -136,7 +136,7 @@ export async function startServer(opts: { spawnInitialWorkers?: boolean } = {}):
   });
 
   await app.listen({ port: config.port, host: config.host });
-  log.info(`relay API listening on http://127.0.0.1:${config.port}`);
+  log.info(`vitals API listening on http://127.0.0.1:${config.port}`);
 
   const refreshTimer = setInterval(() => {
     refresh().catch((err) => log.warn({ err }, 'snapshot refresh failed'));

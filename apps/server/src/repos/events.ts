@@ -1,6 +1,6 @@
 import type { Pool } from 'pg';
 import type { EventBus } from '../events/bus.js';
-import type { TaskEvent } from '@relay/core';
+import type { TaskEvent } from '@vitals/core';
 import { RingBuffer } from '../util.js';
 
 export class EventsRepo {

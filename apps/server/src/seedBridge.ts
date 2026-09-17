@@ -1,4 +1,4 @@
-import { planSeedMix, seedMixSummary, type SeedPlanItem } from '@relay/core';
+import { planSeedMix, seedMixSummary, type SeedPlanItem } from '@vitals/core';
 import type { TasksRepo } from './repos/tasks.js';
 
 /**

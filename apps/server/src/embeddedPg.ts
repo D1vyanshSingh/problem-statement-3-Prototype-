@@ -55,7 +55,7 @@ export async function ensurePostgres(): Promise<void> {
   }
   await pg.start();
   // Keep the handle referenced so the child stays alive for the process lifetime.
-  (globalThis as Record<string, unknown>).__relayPg = pg;
+  (globalThis as Record<string, unknown>).__vitalsPg = pg;
 }
 
 export async function waitForPostgres(): Promise<void> {
@@ -86,7 +86,7 @@ const dbNeedsCreation = (e: unknown): boolean => {
 };
 
 /** CREATE DATABASE is not idempotent — guard with an existence check (plan §E). */
-export async function ensureRelayDatabase(): Promise<void> {
+export async function ensureVitalsDatabase(): Promise<void> {
   const url =
     config.databaseUrl ||
     `postgres://postgres:postgres@127.0.0.1:${config.embeddedPgPort}/postgres`;
@@ -103,8 +103,8 @@ export async function ensureRelayDatabase(): Promise<void> {
   const admin = new Client({ connectionString: adminUrl.toString() });
   await admin.connect();
   try {
-    await admin.query('CREATE DATABASE relay');
-    log.info('created database relay');
+    await admin.query('CREATE DATABASE vitals');
+    log.info('created database vitals');
   } finally {
     await admin.end();
   }

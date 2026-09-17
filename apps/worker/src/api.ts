@@ -1,5 +1,5 @@
 import {
-  RELAY_API,
+  VITALS_API,
   WORKER_NAME,
   WORKER_CAPACITY,
   HEARTBEAT_INTERVAL_MS,
@@ -28,8 +28,8 @@ export interface Lease {
   leaseToken: string;
 }
 
-export class RelayApi {
-  private base = RELAY_API;
+export class VitalsApi {
+  private base = VITALS_API;
   private workerId: string | null = null;
   private leases = new Map<string, string>();
 

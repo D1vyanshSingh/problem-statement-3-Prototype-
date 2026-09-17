@@ -9,6 +9,6 @@ export function makePool(): Pool {
     connectionString,
     max: 12,
     idleTimeoutMillis: 30_000,
-    application_name: 'relay-server',
+    application_name: 'vitals-server',
   });
 }

@@ -15,5 +15,5 @@
 | Worker says "unknown worker - re-register required" | Normal after a reap: the worker re-registers automatically within one heartbeat cycle |
 | Tasks stuck RUNNING forever | Only if the reaper is off (`REAPER_INTERVAL_MS` huge); restart `pnpm dev` — boot-time reaper pass recovers them |
 | `pnpm test` hangs on Postgres boot | Another test/server instance holds the port; `taskkill` it or set `EMBEDDED_PG_PORT` + `PORT` for the test run |
-| Vite dev server port 5173 busy | `pnpm --filter @relay/dashboard dev -- --port 5174` |
+| Vite dev server port 5173 busy | `pnpm --filter @vitals/dashboard dev -- --port 5174` |
 | Windows: worker spawn fails with tsx resolution | `pnpm add -w tsx` then retry (chaos spawns run `--import tsx` from the repo root) |

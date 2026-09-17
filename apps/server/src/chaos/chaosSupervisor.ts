@@ -53,9 +53,9 @@ export class ChaosSupervisor {
         detached: false,
         env: {
           ...process.env,
-          RELAY_API: `http://127.0.0.1:${config.port}`,
-          RELAY_NAME: name,
-          RELAY_CAPACITY: '1',
+          VITALS_API: `http://127.0.0.1:${config.port}`,
+          VITALS_NAME: name,
+          VITALS_CAPACITY: '1',
         },
       },
     );

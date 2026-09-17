@@ -1,5 +1,5 @@
 {
-  "name": "@relay/worker",
+  "name": "@vitals/worker",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
@@ -7,7 +7,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@relay/core": "workspace:*",
+    "@vitals/core": "workspace:*",
     "pino": "^9.6.0"
   }
 }

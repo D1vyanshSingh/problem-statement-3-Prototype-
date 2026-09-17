@@ -221,7 +221,7 @@ importers:
       '@fastify/websocket':
         specifier: ^11.0.1
         version: 11.3.0
-      '@relay/core':
+      '@vitals/core':
         specifier: workspace:*
         version: link:../../packages/core
       embedded-postgres:
@@ -249,7 +249,7 @@ importers:
 
   apps/worker:
     dependencies:
-      '@relay/core':
+      '@vitals/core':
         specifier: workspace:*
         version: link:../../packages/core
       pino:

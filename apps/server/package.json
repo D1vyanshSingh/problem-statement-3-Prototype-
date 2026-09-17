@@ -1,5 +1,5 @@
 {
-  "name": "@relay/server",
+  "name": "@vitals/server",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
@@ -9,7 +9,7 @@
   "dependencies": {
     "@fastify/static": "^8.0.3",
     "@fastify/websocket": "^11.0.1",
-    "@relay/core": "workspace:*",
+    "@vitals/core": "workspace:*",
     "embedded-postgres": "^17.4.0-beta.15",
     "fastify": "^5.2.1",
     "pg": "^8.13.1",

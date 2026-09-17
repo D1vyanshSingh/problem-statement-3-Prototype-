@@ -1,4 +1,4 @@
-import type { Task, TaskEvent, Worker } from '@relay/core';
+import type { Task, TaskEvent, Worker } from '@vitals/core';
 import type { MetricsSnapshot, QueueSnapshot } from '../repos/tasksMetrics.js';
 
 export interface LiveSnapshot {

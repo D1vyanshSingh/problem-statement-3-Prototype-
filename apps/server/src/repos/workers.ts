@@ -1,7 +1,7 @@
 import type { Pool } from 'pg';
 import type { EventBus } from '../events/bus.js';
 import type { EventsRepo } from './events.js';
-import type { Worker, WorkerStatus } from '@relay/core';
+import type { Worker, WorkerStatus } from '@vitals/core';
 import { nowIso } from '../util.js';
 
 interface WorkerRow {

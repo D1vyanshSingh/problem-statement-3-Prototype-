@@ -1,4 +1,4 @@
-import { RelayApi } from './api.js';
+import { VitalsApi } from './api.js';
 import { handlers, UnknownTaskTypeError } from './handlers.js';
 import { logger, sleep } from './util.js';
 import {
@@ -11,7 +11,7 @@ import {
 const log = logger.child({ mod: 'worker' });
 
 export class WorkerNode {
-  private api = new RelayApi();
+  private api = new VitalsApi();
   private running = false;
   private executing = 0;
   private paused = false;

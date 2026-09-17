@@ -39,7 +39,7 @@ const invokedDirectly =
   import.meta.url === `file:///${process.argv[1]}` ||
   process.argv[1]?.replaceAll('\\', '/').endsWith('apps/worker/src/index.ts');
 
-if (invokedDirectly || process.env.RELAY_WORKER_CHILD === '1') {
+if (invokedDirectly || process.env.VITALS_WORKER_CHILD === '1') {
   main().catch((err) => {
     log.error({ err }, 'fatal worker error');
     process.exit(1);

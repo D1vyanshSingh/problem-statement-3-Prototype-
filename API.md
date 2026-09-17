@@ -1,4 +1,4 @@
-# Relay — API Contract
+# Vitals — API Contract
 
 Base URL: `http://localhost:8080` (configurable via `PORT`).
 

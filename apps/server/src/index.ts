@@ -8,7 +8,7 @@ async function main(): Promise<void> {
   const spawnInitialWorkers = !process.argv.includes('--no-workers');
   const running = await startServer({ spawnInitialWorkers });
   await waitUntilHealthy(running.port);
-  log.info(`relay ready: http://127.0.0.1:${running.port}`);
+  log.info(`vitals ready: http://127.0.0.1:${running.port}`);
 
   const shutdown = async (sig: string) => {
     log.info({ sig }, 'shutting down');
