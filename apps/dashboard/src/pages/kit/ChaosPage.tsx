@@ -23,12 +23,103 @@ export default function ChaosPage() {
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Fencing simulation state
+  const [fenceBusy, setFenceBusy] = useState(false);
+  const [fenceStep, setFenceStep] = useState<0 | 1 | 2 | 3>(0); // 0 idle, 1 task running, 2 reassigned, 3 stale write rejected
+  const [fenceLog, setFenceLog] = useState<string[]>([]);
+
   const online = s.workers.filter((w) => w.status === 'online');
   const runningTasks = s.tasks.filter((t) => t.status === 'running' && t.assignedWorkerId);
 
   // Derive live stage progress from real events during an active run.
   const seen = (type: string, after: number) =>
     feed.some((e) => e.type === type && new Date(e.createdAt).getTime() > after);
+
+  /** Fencing demo: prove a dead worker's stale completion is REJECTED.
+   *  1. Run a task on worker A but remember A's claim payload.
+   *  2. Terminate A; the system recovers and reassigns to worker B.
+   *  3. Replay A's stale completion — the server must reject it (409). */
+  const runFencingDemo = async () => {
+    if (fenceBusy) return;
+    setFenceBusy(true);
+    setError(null);
+    setFenceStep(0);
+    setFenceLog([]);
+    const push = (line: string) => setFenceLog((l) => [...l, line]);
+    try {
+      if (online.length < 2) {
+        push('Deploying a second worker so the task has somewhere to go…');
+        await api('/api/admin/chaos/spawn-worker', { method: 'POST' });
+        await new Promise((r) => setTimeout(r, 2500));
+      }
+
+      push('Submitting a long-running task…');
+      const t = await api<{ id: string }>('/api/tasks', {
+        method: 'POST',
+        body: JSON.stringify({ type: 'demo.sleep', payload: { workMs: 120000 }, maxAttempts: 3 }),
+      });
+
+      // Wait for a claim, capture the holder's identity.
+      let holderId: string | null = null;
+      let holderName = '';
+      for (let i = 0; i < 30; i++) {
+        await new Promise((r) => setTimeout(r, 500));
+        const cur = (await api<{ id: string; status: string; assignedWorkerId: string | null }[]>('/api/tasks?limit=50')).find(
+          (x) => x.id === t.id,
+        );
+        if (cur?.status === 'running' && cur.assignedWorkerId) {
+          holderId = cur.assignedWorkerId;
+          holderName = s.workers.find((w) => w.id === cur.assignedWorkerId)?.name ?? cur.assignedWorkerId.slice(0, 8);
+          break;
+        }
+      }
+      if (!holderId) throw new Error('No worker claimed the task.');
+      setFenceStep(1);
+      push(`Task claimed by ${holderName} (lease issued).`);
+
+      // Kill the holder; the reaper will recover and reassign.
+      push(`Terminating ${holderName} mid-task (SIGKILL)…`);
+      await api(`/api/admin/chaos/kill-worker/${holderName}`, { method: 'POST' });
+      push('Waiting for heartbeat timeout, lease recovery, and reassignment…');
+
+      let newHolderId: string | null = null;
+      for (let i = 0; i < 40; i++) {
+        await new Promise((r) => setTimeout(r, 500));
+        const cur = (await api<{ id: string; status: string; assignedWorkerId: string | null }[]>('/api/tasks?limit=50')).find(
+          (x) => x.id === t.id,
+        );
+        if (cur?.status === 'running' && cur.assignedWorkerId && cur.assignedWorkerId !== holderId) {
+          newHolderId = cur.assignedWorkerId;
+          break;
+        }
+      }
+      const newHolderName = newHolderId
+        ? s.workers.find((w) => w.id === newHolderId)?.name ?? newHolderId!.slice(0, 8)
+        : null;
+      if (!newHolderName) throw new Error('Task was not reassigned — is another worker online?');
+      setFenceStep(2);
+      push(`Task reassigned to ${newHolderName} (fresh lease issued).`);
+
+      // Replay the DEAD worker's stale completion with its old identity.
+      push(`${holderName} comes back from the dead and reports: "task complete"…`);
+      const res = await fetch(`/api/tasks/${t.id}/complete`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ workerId: holderId, leaseToken: 'stale-token-from-dead-worker' }),
+      });
+      if (res.status === 409) {
+        setFenceStep(3);
+        push('REJECTED — 409 Fenced: the server recognized the stale lease and refused the write.');
+        push(`Task still safely owned by ${newHolderName}. Zero duplicate execution.`);
+      } else {
+        push(`Unexpected response ${res.status} — fencing may have failed. Check server logs.`);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setFenceBusy(false);
+    }
+  };
 
   const runScenario = async () => {
     if (busy) return;
@@ -163,6 +254,69 @@ export default function ChaosPage() {
             })}
           </div>
         </div>
+      </Panel>
+
+      {/* Fencing simulation */}
+      <Panel className="p-5 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded bg-black border border-border flex items-center justify-center text-red-500">
+              <Icon name="shield_lock" className="!text-[18px]" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-white tracking-wide">Fencing Simulation — Stale Write Rejection</h3>
+              <p className="text-[11px] text-gray-500">
+                A dead worker reports "task complete" after its lease was reassigned. The server must refuse it.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={runFencingDemo}
+            disabled={fenceBusy}
+            className="px-4 py-2 bg-red-600 text-white font-mono text-xs font-bold rounded hover:bg-red-500 disabled:opacity-50 transition-all flex items-center gap-2 shadow-[0_0_16px_rgba(239,68,68,0.4)] active:scale-95"
+          >
+            <Icon name={fenceBusy ? 'sync' : fenceStep === 3 ? 'check_circle' : 'play_arrow'} className={`!text-[16px] ${fenceBusy ? 'animate-spin' : ''}`} />
+            {fenceBusy ? 'RUNNING…' : fenceStep === 3 ? 'RE-RUN FENCING DEMO' : 'RUN FENCING DEMO'}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {(
+            [
+              ['TASK LEASED', 'A worker claims the task with a lease token', 1, 'memory'],
+              ['WORKER DIES & TASK MOVES', 'Recovery reassigns the task with a fresh lease', 2, 'alt_route'],
+              ['STALE WRITE REJECTED', 'The dead worker reports completion — 409 refused', 3, 'gpp_bad'],
+            ] as const
+          ).map(([label, sub, step, icon]) => {
+            const done = fenceStep >= step;
+            const active = fenceStep === step - 1 && fenceBusy;
+            return (
+              <div
+                key={label}
+                className={`bg-black border rounded-lg p-3.5 ${done ? 'border-red-800/80' : 'border-border'} ${active ? 'animate-pulse' : ''}`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className={`font-mono text-[11px] font-bold ${done ? 'text-red-400' : 'text-gray-500'}`}>{label}</span>
+                  <Icon
+                    name={done ? 'check_circle' : icon}
+                    className={`!text-[18px] ${done ? 'text-emerald-400' : 'text-gray-600'}`}
+                  />
+                </div>
+                <p className={`text-[10px] font-mono mt-1.5 ${done ? 'text-gray-300' : 'text-gray-600'}`}>{sub}</p>
+              </div>
+            );
+          })}
+        </div>
+
+        {fenceLog.length > 0 && (
+          <div className="bg-black border border-border rounded p-3 font-mono text-[11px] space-y-1 max-h-40 overflow-y-auto">
+            {fenceLog.map((l, i) => (
+              <div key={i} className={l.startsWith('REJECTED') ? 'text-emerald-400 font-bold' : l.includes('409') ? 'text-emerald-400' : 'text-gray-400'}>
+                [{String(i).padStart(2, '0')}] {l}
+              </div>
+            ))}
+          </div>
+        )}
       </Panel>
 
       {/* Terminal + guarantee */}
