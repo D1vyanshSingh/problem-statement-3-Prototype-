@@ -62,10 +62,12 @@ export async function waitForPostgres(): Promise<void> {
   const url =
     config.databaseUrl ||
     `postgres://postgres:postgres@127.0.0.1:${config.embeddedPgPort}/postgres`;
+  const host = new URL(url).hostname;
+  const external = !['localhost', '127.0.0.1', '::1'].includes(host);
   const deadline = Date.now() + 20_000;
   let lastErr: unknown;
   while (Date.now() < deadline) {
-    const c = new Client({ connectionString: url });
+    const c = new Client({ connectionString: url, ssl: external ? { rejectUnauthorized: false } : undefined });
     try {
       await c.connect();
       await c.end();
@@ -90,17 +92,20 @@ export async function ensureVitalsDatabase(): Promise<void> {
   const url =
     config.databaseUrl ||
     `postgres://postgres:postgres@127.0.0.1:${config.embeddedPgPort}/postgres`;
+  const host = new URL(url).hostname;
+  const external = !['localhost', '127.0.0.1', '::1'].includes(host);
+  const ssl = external ? { rejectUnauthorized: false } : undefined;
   try {
-    const c = new Client({ connectionString: url });
+    const c = new Client({ connectionString: url, ssl });
     await c.connect();
     await c.end();
-    return; // default db reachable — nothing to create
+    return; // target db reachable — nothing to create
   } catch (e) {
     if (!dbNeedsCreation(e)) throw e;
   }
   const adminUrl = new URL(url);
   adminUrl.pathname = '/postgres';
-  const admin = new Client({ connectionString: adminUrl.toString() });
+  const admin = new Client({ connectionString: adminUrl.toString(), ssl });
   await admin.connect();
   try {
     await admin.query('CREATE DATABASE vitals');
